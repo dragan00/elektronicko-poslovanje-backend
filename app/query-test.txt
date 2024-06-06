@@ -1,0 +1,256 @@
+
+        select
+                json_agg(_tl)
+            from
+                (
+                    --loading space Informacije
+                    select
+                        tc.id,
+                        tc.created_at,
+                        tc.vehicle_length,
+                        tc.vehicle_load_capacity,
+                        tc.connected_vehicle_length,
+                        tc.connected_vehicle_load_capacity,
+                        tc.vehicle_note,
+                        tc.status,
+                        
+        --Oprema vozila pocetak
+        (
+            select
+                COALESCE(json_agg(_oprema_vozila), '[]') "vehicle_equipment"
+            from
+                (
+                    select
+                        tveq.id, tveq.name
+                    from
+                        transport_loadingspace_vehicle_equipment tcveq
+                    inner join
+                        transport_vehicleequipment tveq on tveq.id = tcveq.vehicleequipment_id
+                    where
+                        tcveq.loadingspace_id = tc.id
+                ) _oprema_vozila
+        ) 
+        --Oprema vozila kraj
+    ,
+                         (
+                            select
+                                json_agg(_tcvt) "vehicle_type"
+                            from
+                                (
+                                    select
+                                        tv.id,
+                                        (
+                                            select
+                                                json_agg(_tvtt) "translations"
+                                            from
+                                                (
+                                                    select
+                                                        tv2.id,
+                                                        tv2.name
+                                                    from
+                                                        transport_vehicletypetranslate tv2
+                                                    where
+                                                        tv2.vehicle_type_id = tv.id
+                                                ) _tvtt
+                                        )
+                                    from
+                                        transport_vehicletype tv
+                                    where 
+                                        tv.id = tc.vehicle_type_id 
+                                ) _tcvt
+                        ),
+                        --Poduzece start
+                        (
+                            select 
+                                json_agg(_tcompany) "company"
+                            from
+                                (
+                                    select 
+                                        tcom.id,
+                                        tcom.name,
+                                        tcom."OIB",
+                                        tcom.web,
+                                        tcom.address,
+                                        tcom.year,
+                                        tcom.avatar,
+                                        (
+                                            select 
+                                                COALESCE(array_agg(tcm.email), ARRAY[]::text[]) "emails"
+                                            from
+                                                transport_companymail tcm
+                                            where 
+                                                tcm.company_id = tcom.id
+                                        ),
+                                        (
+                                            select 
+                                                COALESCE(json_agg(_nums), '[]') "numbers"
+                                            from 
+                                                (
+                                                    select 
+                                                        tcn.number, tcn.type
+                                                    from
+                                                        transport_companynumber tcn
+                                                    where 
+                                                        tcn.company_id = tcom.id
+                                                ) _nums
+                                        )
+                                    from
+                                        transport_company tcom
+                                    where 
+                                        tcom.id = tc.company_id 
+                                    group by 
+                                        tcom.id
+
+                                ) _tcompany
+                        ),
+                        --Poduzece kraj
+                        -- Kontakt osobe start
+                        (
+                            select
+                                json_agg(_tcca) "contact_accounts"
+                            from
+                                (
+                                    select
+                                        aa.id,
+                                        aa.name,
+                                        aa.email,
+                                        aa.phone_number,
+                                        aa.avatar,
+                                        string_agg(tl."name", ', ') "languages"
+                                    from
+                                        transport_loadingspace_contact_accounts tcca
+                                        inner join accounts_account aa on aa.id = tcca.account_id
+                                        left join accounts_account_languages aal on aal.account_id = aa.id
+                                        left join transport_language tl on tl.id = aal.language_id
+                                    where
+                                        tcca.loadingspace_id = tc.id
+                                    group by
+                                        aa.id
+                                ) _tcca
+                        ),
+                        --Kontakt osobe kraj
+                        --Znacajke vozila pocetak
+                        (
+                            select
+                                json_agg(_tcvf) "vehicle_features"
+                            from
+                                (
+                                    select
+                                        tcvf.vehiclefeature_id, tvf.name,
+                                        (
+                                            select
+                                                json_agg(_tv) "translations"
+                                            from
+                                                (
+                                                    select
+                                                        tv.id,
+                                                        tv.name
+                                                    from
+                                                        transport_vehiclefeaturetranslate tv
+                                                    where
+                                                        tv.vehicle_feature_id = tcvf.vehiclefeature_id
+                                                ) _tv
+                                        )
+                                    from
+                                        transport_loadingspace_vehicle_features tcvf
+                                    inner join
+                                        transport_vehiclefeature tvf on tvf.id = tcvf.vehiclefeature_id
+                                    where
+                                        tcvf.loadingspace_id = tc.id
+                                ) _tcvf
+                        ) ,
+                        --Znacajke vozila kraj
+                        --Nadogradnje vozila pocetak
+                        
+                        (
+                            select
+                                json_agg(_tcvu) "vehicle_upgrades"
+                            from
+                                (
+                                    select
+                                        tcvu.vehicleupgrade_id, tvu.name,
+                                        (
+                                            select
+                                                json_agg(_tvut) "translations"
+                                            from
+                                                (
+                                                    select
+                                                        tvut.id,
+                                                        tvut.name
+                                                    from
+                                                        transport_vehicleupgradetranslate tvut
+                                                    where
+                                                        tvut.vehicle_upgrade_id = tcvu.vehicleupgrade_id
+                                                ) _tvut
+                                        )
+                                    from
+                                        transport_loadingspace_vehicle_upgrades tcvu
+                                    inner join
+                                        transport_vehicleupgrade tvu on tvu.id = tcvu.vehicleupgrade_id
+                                    where 
+                                        tcvu.loadingspace_id = tc.id
+                                ) _tcvu
+                        ),
+                        --Nadogradnje vozila kraj
+						(
+                            select 
+                                json_agg(_spd) "starting_point_destination" 
+                            from
+                                (
+                                    select 
+                                        ts.id, 
+                                        ts.departure_datetime, 
+                                        ts.type,
+                                        json_build_object(
+                                            'id', ts.country_id,
+                                            'name', tc3.name,
+                                            'alpha2Code', tc3."alpha2Code"
+                                        ) "country",
+                                        json_build_object(
+                                            'id', ts.city_id,
+                                            'name', tc2.name
+                                        ) "city",
+                                        json_build_object(
+                                            'id', ts.zip_code_id,
+                                            'name', tz.code
+                                        ) "zip_code"
+                                    from 
+                                        transport_startingpointdestination ts
+                                    left join
+                                        transport_city tc2 on tc2.id = ts.city_id 
+                                    left join
+                                        transport_country tc3 on tc3.id = ts.country_id 
+                                    left join
+                                        transport_zipcode tz on tz.id = ts.zip_code_id
+                                    where
+                                        ts.loading_space_id = tc.id
+                                ) _spd
+                        )
+                    from
+                        transport_loadingspace tc
+                    
+                    WHERE tc.status = 'active' and 
+                (tc.company_id not in (
+                    select 
+                        tcbl.blocked_company_id
+                    from 
+                        transport_companyblocklist tcbl
+                    where 
+                        tcbl.my_company_id = (
+                            select 
+                                aa2.company_id 
+                            from 
+                                accounts_account aa2
+                            inner join 
+                                authtoken_token at on at.user_id = aa2.id
+                            where
+                                at.key = 'a97775f98eab1aba8c4453fded43b8506d6e48dd'
+                        ) and unblocked_at is null
+                ) )
+            
+                    group by tc.id
+                    
+                    order by tc.id desc
+                    
+                ) _tl
+    
