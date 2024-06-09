@@ -84,7 +84,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3047',
     'http://fakultet.elektronickoposlovanje.neuros.hr',
     'https://fakultet.elektronickoposlovanje.neuros.hr',
-    'https://fakultet.elektronickoposlovanje.neuros.hr/'
+    'https://fakultet.elektronickoposlovanje.neuros.hr'
 ]
 
 ROOT_URLCONF = 'core.urls'
