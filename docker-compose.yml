@@ -1,6 +1,12 @@
 version: '3.3'
 
 services:
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
   web:
     build: ./app
     command: gunicorn core.wsgi:application --bind 0.0.0.0:8000
@@ -15,6 +21,23 @@ services:
       - ./.env.dev
     depends_on:
       - db
+      - redis
+
+  daphne:
+    build: ./app
+    command: daphne -b 0.0.0.0 -p 8001 core.asgi:application
+    volumes:
+      - ./app/:/usr/src/app/
+      - "/etc/timezone:/etc/timezone:ro"
+      - "/etc/localtime:/etc/localtime:ro"
+    ports:
+      - 8001:8001
+    env_file:
+      - ./.env.dev
+    depends_on:
+      - db
+      - redis
+  
   db:
     image: postgres:12.0-alpine
     ports:

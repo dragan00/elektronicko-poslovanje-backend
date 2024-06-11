@@ -11,3 +11,6 @@ fcm-django<1
 tzdata
 urllib3==1.25.11
 django-sslserver
+channels
+channels-redis
+daphne
