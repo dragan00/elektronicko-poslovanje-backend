@@ -6,6 +6,7 @@ from rest_framework.authtoken.models import Token
 from helpers.global_helper.exceptions import api_exc
 from helpers.global_helper.object_generator import *
 from transport.selectors import get_company_details
+from transport.utils import send_change_signal
 from .models import *
 import requests
 import json
@@ -2727,6 +2728,8 @@ def insert_auction(data, token):
         raise Http404()
     res = pretty_get_auctions(sql_data)
     send_push_insert_auction.after_response(data['cargo'], token)
+    send_change_signal('list', None, 'cargo')
+    send_change_signal('details', data['cargo'], 'cargo')
     return res
 
 #CARGO START

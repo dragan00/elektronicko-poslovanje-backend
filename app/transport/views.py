@@ -10,6 +10,8 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.exceptions import PermissionDenied
 
 from django.db import connection, transaction
+
+from transport.utils import send_change_signal
 from .helpers import *
 
 from .services import *
@@ -118,10 +120,14 @@ class CargoApiView(APIView):
 
     def post(self, request, *args, **kwargs):
         res = insert_cargo(request.data, get_token(request.headers))
+    
+        send_change_signal('list', None, 'cargo')
         return Response(res, 200)
 
     def put(self, request, cargo_id=None, *args, **kwargs):
         res = update_cargo(request.data, get_token(request.headers), cargo_id)
+        send_change_signal('list', None, 'cargo')
+        send_change_signal('details', cargo_id, 'cargo')
         return Response(res, 200)
 
 
@@ -131,6 +137,8 @@ class CloseCargoApiView(APIView):
     def post(self, request, pk=None, *args, **kwargs):
         res, code = close_cargo(pk, request.user)
         res, code = get_cargo_details(int(pk))
+        send_change_signal('list', None, 'cargo')
+        send_change_signal('details', pk, 'cargo')
         return Response(res, code)
 
 class AuctionApiView(APIView):
@@ -178,10 +186,15 @@ class LoadingSpaceApiView(APIView):
 
     def post(self, request, *args, **kwargs):
         res = insert_loading_space(request.data, get_token(request.headers))
+        
+        send_change_signal('list', None, 'loading_space')
         return Response(res, 200)
 
     def put(self, request, pk=None, *args, **kwargs):
         res = update_loading_space(request.data, get_token(request.headers), pk)
+        
+        send_change_signal('list', None, 'loading_space')
+        send_change_signal('details', pk, 'loading_space')
         return Response(res, 200)
 
 class CloseLoadingSpaceApiView(APIView):
@@ -189,6 +202,9 @@ class CloseLoadingSpaceApiView(APIView):
     def post(self, request, pk=None, *args, **kwargs):
         res, code = close_loading_space(pk, request.user)
         res, code = get_loading_spaces(pk, '')
+        
+        send_change_signal('list', None, 'loading_space')
+        send_change_signal('details', pk, 'loading_space')
         return Response(res, code)
 
 
@@ -205,11 +221,16 @@ class StockApiView(APIView):
 
     def post(self, request, *args, **kwargs):
         res = insert_stock(request.data, get_token(request.headers), request.FILES.getlist('files'))
+        
+        send_change_signal('list', None, 'stock')
         return Response(res, 201)
 
     def put(self, request, pk=None, *args, **kwargs):
         print(pk)
         res = update_stock(request.data, get_token(request.headers), pk)
+        
+        send_change_signal('list', None, 'stock')
+        send_change_signal('details', pk, 'stock')
         return Response(res, 200)
 
 class StockImageApiView(APIView):
@@ -219,6 +240,8 @@ class StockImageApiView(APIView):
     def post(self, request, pk=None, *args, **kwargs):
         can_upload_stock_images(pk, request.user)
         res = upload_stock_images(pk, request.FILES.getlist('files'), request.user)
+        
+        send_change_signal('details', pk, 'stock')
         return Response(res)
 
     def dispatch(self, *args, **kwargs):
@@ -233,6 +256,8 @@ class RemoveStockImageApiView(APIView):
     def post(self, request, pk=None, image_id=None, *args, **kwargs):
         can_remove_stock_image(image_id, pk, request.user)
         res = remove_stock_image(image_id, pk)
+        
+        send_change_signal('details', pk, 'stock')
         return Response(res, 200)
 
 class CloseStockApiView(APIView):
@@ -240,6 +265,9 @@ class CloseStockApiView(APIView):
     def post(self, request, pk=None, *args, **kwargs):
         res, code = close_stock(pk, request.user)
         res, code = get_stocks(pk, '')
+        
+        send_change_signal('list', None, 'stock')
+        send_change_signal('details', pk, 'stock')
         return Response(res, code)
 
 class CompanyApiView(APIView):
